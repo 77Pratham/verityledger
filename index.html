@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VerityLedger — audit trail for AI agents</title>
+<meta name="description" content="VerityLedger wraps your agent's tool calls and decisions in a tamper-evident, hash-chained log. Local-first, open source, MIT licensed.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+
+  :root{
+    --bg: #0F1320;
+    --bg-raised: #161B2C;
+    --bg-raised-2: #1C2238;
+    --text: #E8EAF2;
+    --text-dim: #8990A8;
+    --text-faint: #5B6280;
+    --accent-valid: #5EEAD4;
+    --accent-valid-dim: #2C7A6F;
+    --accent-broken: #FB7185;
+    --accent-broken-dim: #7A3A42;
+    --hairline: #262C44;
+    --hairline-soft: #1E2438;
+    --radius: 12px;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --sans: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+    --max: 1180px;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html{ scroll-behavior: smooth; }
+
+  body{
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a{ color: inherit; }
+
+  code, pre{ font-family: var(--mono); }
+
+  button{ font-family: var(--sans); cursor: pointer; }
+
+  :focus-visible{
+    outline: 2px solid var(--accent-valid);
+    outline-offset: 2px;
+  }
+
+  /* ---------- layout helpers ---------- */
+
+  .wrap{
+    max-width: var(--max);
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  .prose-wrap{
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  /* ---------- nav ---------- */
+
+  .nav{
+    border-bottom: 1px solid var(--hairline-soft);
+  }
+
+  .nav__inner{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0;
+  }
+
+  .nav__wordmark{
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 1.05rem;
+    letter-spacing: -0.01em;
+  }
+
+  .nav__wordmark::before{
+    content: "//";
+    color: var(--accent-valid);
+    margin-right: 8px;
+  }
+
+  .nav__links{
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .nav__install{
+    display: none;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    background: var(--bg-raised);
+    border: 1px solid var(--hairline);
+    padding: 6px 12px;
+    border-radius: 6px;
+  }
+
+  @media (min-width: 640px){
+    .nav__install{ display: inline-block; }
+  }
+
+  .nav__github{
+    font-size: 0.88rem;
+    text-decoration: none;
+    color: var(--text-dim);
+    border-bottom: 1px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .nav__github:hover{
+    color: var(--text);
+    border-color: var(--text-dim);
+  }
+
+  /* ---------- hero ---------- */
+
+  .hero{
+    padding: 64px 0 80px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 56px;
+    align-items: start;
+  }
+
+  @media (min-width: 980px){
+    .hero{
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 40px;
+      padding: 88px 0 110px;
+    }
+  }
+
+  .hero__eyebrow{
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent-valid);
+    margin: 0 0 18px;
+  }
+
+  .hero__headline{
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: clamp(2rem, 3.6vw + 1rem, 3.15rem);
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+    margin: 0 0 22px;
+  }
+
+  .hero__sub{
+    color: var(--text-dim);
+    font-size: 1.05rem;
+    max-width: 46ch;
+    margin: 0 0 32px;
+  }
+
+  .hero__sub strong{
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .hero__cta{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .install-copy{
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-raised);
+    border: 1px solid var(--hairline);
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    color: var(--text);
+    transition: border-color 0.15s;
+  }
+
+  .install-copy:hover{ border-color: var(--text-faint); }
+
+  .install-copy__prompt{ color: var(--accent-valid); }
+
+  .install-copy__btn{
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+  }
+
+  .install-copy__btn:hover{ color: var(--text); }
+
+  .install-copy__tooltip{
+    position: absolute;
+    top: -34px;
+    right: 0;
+    background: var(--accent-valid);
+    color: #0B1A18;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: 5px;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.15s, transform 0.15s;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  .install-copy__tooltip.is-visible{
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .hero__github-btn{
+    text-decoration: none;
+    color: var(--text-dim);
+    font-size: 0.92rem;
+    padding: 12px 6px;
+    border-bottom: 1px solid var(--hairline);
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .hero__github-btn:hover{
+    color: var(--text);
+    border-color: var(--text-faint);
+  }
+
+  /* ---------- ledger (signature element) ---------- */
+
+  .ledger{
+    background: var(--bg-raised);
+    border: 1px solid var(--hairline);
+    border-radius: 16px;
+    padding: 22px 22px 26px;
+  }
+
+  .ledger__status{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.03em;
+    color: var(--accent-valid);
+    background: rgba(94, 234, 212, 0.08);
+    border: 1px solid var(--accent-valid-dim);
+    padding: 6px 12px;
+    border-radius: 999px;
+    margin-bottom: 6px;
+    transition: color 0.2s, background 0.2s, border-color 0.2s;
+  }
+
+  .ledger__status.is-broken{
+    color: var(--accent-broken);
+    background: rgba(251, 113, 133, 0.08);
+    border-color: var(--accent-broken-dim);
+  }
+
+  .ledger__status-dot{
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .ledger__note{
+    font-size: 0.82rem;
+    color: var(--text-faint);
+    margin: 10px 0 18px;
+    min-height: 1.4em;
+    transition: color 0.2s;
+  }
+
+  .ledger__note.is-broken{ color: var(--accent-broken); }
+
+  .block{
+    background: var(--bg-raised-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    opacity: 0;
+    transform: translateY(8px);
+    animation: blockIn 0.5s ease forwards;
+  }
+
+  .block:nth-of-type(1){ animation-delay: 0.05s; }
+  .block:nth-of-type(2){ animation-delay: 0.2s; }
+  .block:nth-of-type(3){ animation-delay: 0.35s; }
+  .block:nth-of-type(4){ animation-delay: 0.5s; }
+
+  @keyframes blockIn{
+    to{ opacity: 1; transform: translateY(0); }
+  }
+
+  .block__head{
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .block__id{
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text-faint);
+  }
+
+  .block__type{
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    background: var(--bg-raised);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .block__body{
+    font-family: var(--mono);
+    font-size: 0.84rem;
+    color: var(--text);
+    line-height: 1.55;
+  }
+
+  .block__body--muted{ color: var(--text-faint); }
+
+  .block__strike{
+    color: var(--text-faint);
+    text-decoration: line-through;
+    margin-right: 6px;
+  }
+
+  .block__new{
+    color: var(--accent-broken);
+  }
+
+  .block__hash-row{
+    margin-top: 10px;
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    color: var(--text-faint);
+  }
+
+  .block__hash-row span.label{ color: var(--text-faint); }
+
+  .block__hash-row .stored{ color: var(--accent-valid); }
+  .block__hash-row.is-broken .stored{ color: var(--text-faint); text-decoration: line-through; }
+  .block__hash-row .expected{ color: var(--accent-broken); display: none; }
+  .block__hash-row.is-broken .expected{ display: inline; }
+
+  .block__tamper{
+    margin-top: 12px;
+    background: transparent;
+    border: 1px solid var(--hairline);
+    color: var(--text-dim);
+    font-size: 0.76rem;
+    padding: 7px 12px;
+    border-radius: 6px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .block__tamper:hover{
+    border-color: var(--accent-broken-dim);
+    color: var(--accent-broken);
+  }
+
+  .block__tamper[disabled]{
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .thread{
+    height: 26px;
+    margin-left: 26px;
+    border-left: 2px solid var(--accent-valid-dim);
+    position: relative;
+    transition: border-color 0.25s;
+  }
+
+  .thread.is-broken{
+    border-left-style: dashed;
+    border-left-color: var(--accent-broken-dim);
+  }
+
+  .ledger__footer{
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
+  }
+
+  .ledger__reset{
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    font-size: 0.78rem;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    padding: 4px;
+  }
+
+  .ledger__reset:hover{ color: var(--text-dim); }
+
+  /* ---------- sections ---------- */
+
+  section.band{
+    padding: 64px 0;
+    border-top: 1px solid var(--hairline-soft);
+  }
+
+  .band__eyebrow{
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 0 0 16px;
+  }
+
+  .band__lede{
+    font-size: 1.08rem;
+    color: var(--text);
+    max-width: 62ch;
+    margin: 0 0 10px;
+  }
+
+  .band__lede + .band__lede{ color: var(--text-dim); }
+
+  pre.codeblock{
+    margin: 28px 0 0;
+    background: var(--bg-raised);
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: 20px 22px;
+    overflow-x: auto;
+    font-size: 0.86rem;
+    line-height: 1.65;
+  }
+
+  pre.codeblock code{ color: var(--text); }
+
+  .tok-kw{ color: var(--accent-valid); }
+  .tok-str{ color: #F0C674; }
+  .tok-com{ color: var(--text-faint); }
+  .tok-fn{ color: #82AAFF; }
+
+  pre.termblock{
+    margin: 28px 0 0;
+    background: #0A0D17;
+    border: 1px solid var(--hairline);
+    border-radius: 10px;
+    padding: 20px 22px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  pre.termblock .prompt{ color: var(--accent-valid); }
+  pre.termblock .ok{ color: var(--accent-valid); }
+  pre.termblock .bad{ color: var(--accent-broken); }
+  pre.termblock .dim{ color: var(--text-faint); }
+
+  .how__list{
+    list-style: none;
+    margin: 28px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .how__list li{
+    display: flex;
+    gap: 16px;
+    align-items: baseline;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--hairline-soft);
+    color: var(--text-dim);
+  }
+
+  .how__list li:last-child{ border-bottom: none; padding-bottom: 0; }
+
+  .how__hash{
+    font-family: var(--mono);
+    font-size: 0.84rem;
+    color: var(--accent-valid);
+    white-space: nowrap;
+  }
+
+  /* ---------- footer ---------- */
+
+  footer.footer{
+    border-top: 1px solid var(--hairline-soft);
+    padding: 48px 0 56px;
+  }
+
+  .footer__row{
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  @media (min-width: 640px){
+    .footer__row{
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  .footer__install{
+    font-family: var(--mono);
+    font-size: 0.86rem;
+    color: var(--text-dim);
+    background: var(--bg-raised);
+    border: 1px solid var(--hairline);
+    padding: 9px 14px;
+    border-radius: 7px;
+  }
+
+  .footer__install .prompt{ color: var(--accent-valid); margin-right: 4px; }
+
+  .footer__meta{
+    font-size: 0.84rem;
+    color: var(--text-faint);
+    margin: 0;
+  }
+
+  .footer__meta a{
+    color: var(--text-dim);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+    html{ scroll-behavior: auto; }
+  }
+
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav__inner">
+    <span class="nav__wordmark">verityledger</span>
+    <div class="nav__links">
+      <code class="nav__install">pip install verityledger</code>
+      <a class="nav__github" href="https://github.com/verityledger/verityledger" target="_blank" rel="noopener">GitHub →</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <section class="wrap hero">
+    <div class="hero__copy">
+      <p class="hero__eyebrow">audit trail for ai agents</p>
+      <h1 class="hero__headline">Know what your agent did.<br>Prove nobody changed the record.</h1>
+      <p class="hero__sub">VerityLedger wraps your agent's tool calls and decisions in a tamper-evident, hash-chained log. <strong>Try it — edit the entry on the right and watch the chain break.</strong></p>
+      <div class="hero__cta">
+        <div class="install-copy">
+          <span class="install-copy__prompt">$</span>
+          <span>pip install verityledger</span>
+          <button class="install-copy__btn" id="copyBtn" aria-label="Copy install command" type="button">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          </button>
+          <span class="install-copy__tooltip" id="copyTooltip">copied</span>
+        </div>
+        <a class="hero__github-btn" href="https://github.com/verityledger/verityledger" target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+    </div>
+
+    <div class="hero__demo">
+      <div class="ledger" id="ledger">
+        <span class="ledger__status" id="ledgerStatus"><span class="ledger__status-dot"></span>chain valid</span>
+        <p class="ledger__note" id="ledgerNote">4 entries · 1 session · 0 tampering events</p>
+
+        <div class="block">
+          <div class="block__head">
+            <span class="block__id">#0001</span>
+            <span class="block__type">session_start</span>
+          </div>
+          <div class="block__body">agent: <span style="color:#F0C674">"support-bot"</span></div>
+          <div class="block__hash-row" id="hashRow0">
+            <span class="label">hash</span> <span class="stored">7f3a9c2e1b4d…</span>
+          </div>
+        </div>
+
+        <div class="thread" id="thread0"></div>
+
+        <div class="block">
+          <div class="block__head">
+            <span class="block__id">#0002</span>
+            <span class="block__type">tool_call</span>
+          </div>
+          <div class="block__body" id="block2body">tool: <span style="color:#F0C674">"issue_refund"</span> · amount: <span id="amountValue">$42.00</span></div>
+          <div class="block__hash-row" id="hashRow1">
+            <span class="label">hash</span> <span class="stored">2c81f0a4d9e3…</span><span class="expected">9a44e7b210f5… <span class="dim" style="color:var(--text-faint)">(mismatch)</span></span>
+          </div>
+          <button class="block__tamper" id="tamperBtn" type="button">tamper with this entry</button>
+        </div>
+
+        <div class="thread" id="thread1"></div>
+
+        <div class="block">
+          <div class="block__head">
+            <span class="block__id">#0003</span>
+            <span class="block__type">decision</span>
+          </div>
+          <div class="block__body">decision: <span style="color:#F0C674">"approve refund"</span></div>
+          <div class="block__hash-row" id="hashRow2">
+            <span class="label">hash</span> <span class="stored">e61bb83a7f02…</span>
+          </div>
+        </div>
+
+        <div class="thread" id="thread2"></div>
+
+        <div class="block">
+          <div class="block__head">
+            <span class="block__id">#0004</span>
+            <span class="block__type">session_end</span>
+          </div>
+          <div class="block__body block__body--muted">—</div>
+          <div class="block__hash-row" id="hashRow3">
+            <span class="label">hash</span> <span class="stored">3d9af115c8e0…</span>
+          </div>
+        </div>
+
+        <div class="ledger__footer">
+          <button class="ledger__reset" id="resetBtn" type="button">reset demo</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="prose-wrap">
+      <p class="band__eyebrow">the problem</p>
+      <p class="band__lede">Your agent is making real decisions — refunds, emails, code pushes, customer replies — usually with no record beyond a scattered print statement or a provider dashboard that doesn't keep history.</p>
+      <p class="band__lede">When something goes wrong, you want to reconstruct exactly what happened, and know that record hasn't been quietly edited after the fact. That's the whole library.</p>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="prose-wrap">
+      <p class="band__eyebrow">the sdk</p>
+      <p class="band__lede">A few lines around your existing tools. No schema migration, no separate service to run.</p>
+      <pre class="codeblock"><code><span class="tok-kw">from</span> verityledger <span class="tok-kw">import</span> Tracer
+
+tracer = Tracer()  <span class="tok-com"># writes to ./verityledger_log.jsonl</span>
+
+<span class="tok-kw">with</span> tracer.session(agent=<span class="tok-str">"support-bot"</span>, user=<span class="tok-str">"user_123"</span>) <span class="tok-kw">as</span> session:
+
+    <span class="tok-com">@session.trace_tool</span>
+    <span class="tok-kw">def</span> <span class="tok-fn">issue_refund</span>(order_id: str, amount: float) -> str:
+        <span class="tok-kw">return</span> <span class="tok-str">f"refunded {amount} for {order_id}"</span>
+
+    issue_refund(<span class="tok-str">"ORD-4471"</span>, <span class="tok-str">42.00</span>)
+
+    session.log_decision(
+        <span class="tok-str">"approved refund"</span>,
+        reasoning=<span class="tok-str">"damaged item reported, photo provided, within policy"</span>,
+    )</code></pre>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="prose-wrap">
+      <p class="band__eyebrow">the cli</p>
+      <p class="band__lede">Verify or export any session from the terminal — no Python required.</p>
+      <pre class="termblock"><code><span class="prompt">$</span> verityledger verify a1b2c3d4
+<span class="ok">Chain valid: 3 entries, no tampering detected.</span>
+
+<span class="dim"># after someone edits the log file directly</span>
+<span class="prompt">$</span> verityledger verify a1b2c3d4
+<span class="bad">TAMPERING DETECTED: Hash chain for session 'a1b2c3d4' is broken at entry index 1.</span></code></pre>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="prose-wrap">
+      <p class="band__eyebrow">how it works</p>
+      <ol class="how__list">
+        <li><span class="how__hash">chain.py</span> hashes every entry and links it to the one before it. Edit a past entry and its stored hash no longer matches its content.</li>
+        <li><span class="how__hash">storage/local.py</span> writes to a plain append-only file on your machine. Nothing leaves your computer.</li>
+        <li><span class="how__hash">cli/</span> lets you list, inspect, verify, and export sessions from the terminal.</li>
+      </ol>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap footer__row">
+    <code class="footer__install"><span class="prompt">$</span>pip install verityledger</code>
+    <p class="footer__meta">MIT licensed · open source · <a href="https://github.com/verityledger/verityledger" target="_blank" rel="noopener">github.com/verityledger/verityledger</a></p>
+  </div>
+</footer>
+
+<script>
+(function(){
+
+  var tampered = false;
+
+  var tamperBtn = document.getElementById('tamperBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var status = document.getElementById('ledgerStatus');
+  var note = document.getElementById('ledgerNote');
+  var amountValue = document.getElementById('amountValue');
+  var hashRow1 = document.getElementById('hashRow1');
+  var thread1 = document.getElementById('thread1');
+  var thread2 = document.getElementById('thread2');
+
+  function applyTamper(){
+    tampered = true;
+
+    amountValue.innerHTML = '<span class="block__strike">$42.00</span><span class="block__new">$4,200.00</span>';
+
+    hashRow1.classList.add('is-broken');
+    thread1.classList.add('is-broken');
+    thread2.classList.add('is-broken');
+
+    status.classList.add('is-broken');
+    status.innerHTML = '<span class="ledger__status-dot"></span>chain broken at block #0002';
+
+    note.classList.add('is-broken');
+    note.textContent = "Block #0002's stored hash no longer matches its content. Verification stops here — everything downstream is unverifiable.";
+
+    tamperBtn.textContent = 'entry tampered';
+    tamperBtn.disabled = true;
+  }
+
+  function resetDemo(){
+    tampered = false;
+
+    amountValue.textContent = '$42.00';
+
+    hashRow1.classList.remove('is-broken');
+    thread1.classList.remove('is-broken');
+    thread2.classList.remove('is-broken');
+
+    status.classList.remove('is-broken');
+    status.innerHTML = '<span class="ledger__status-dot"></span>chain valid';
+
+    note.classList.remove('is-broken');
+    note.textContent = '4 entries · 1 session · 0 tampering events';
+
+    tamperBtn.textContent = 'tamper with this entry';
+    tamperBtn.disabled = false;
+  }
+
+  tamperBtn.addEventListener('click', function(){
+    if(!tampered){ applyTamper(); }
+  });
+
+  resetBtn.addEventListener('click', resetDemo);
+
+  var copyBtn = document.getElementById('copyBtn');
+  var copyTooltip = document.getElementById('copyTooltip');
+
+  copyBtn.addEventListener('click', function(){
+    var text = 'pip install verityledger';
+    var showTooltip = function(){
+      copyTooltip.classList.add('is-visible');
+      setTimeout(function(){ copyTooltip.classList.remove('is-visible'); }, 1400);
+    };
+    var fallbackCopy = function(){
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch(e) {}
+      document.body.removeChild(ta);
+      showTooltip();
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(showTooltip).catch(fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+  });
+
+})();
+</script>
+
+</body>
+</html>
