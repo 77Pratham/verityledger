@@ -32,8 +32,8 @@ dev = [
 verityledger = "verityledger.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/verityledger/verityledger"
-Issues = "https://github.com/verityledger/verityledger/issues"
+Homepage = "https://github.com/77Pratham/verityledger"
+Issues = "https://github.com/77Pratham/verityledger/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
